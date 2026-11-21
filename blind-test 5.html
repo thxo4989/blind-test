@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Blind Test</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;font-family:system-ui,Segoe UI,Arial,sans-serif;color:#fff;background:linear-gradient(135deg,#1b0b3a,#4a1166 55%,#c2185b);background-attachment:fixed}
+main{max-width:900px;margin:0 auto;padding:20px}
+h1{text-align:center;font-size:2.2rem;margin:10px 0 20px}
+.card{background:rgba(255,255,255,.1);border-radius:16px;padding:18px;margin-bottom:16px;backdrop-filter:blur(6px)}
+button{font:inherit;border:0;border-radius:10px;padding:10px 16px;cursor:pointer;color:#fff;background:#7c3aed;font-weight:600}
+button:hover{filter:brightness(1.15)}
+button.big{font-size:1.2rem;padding:16px 26px;background:#e91e63}
+button.alt{background:rgba(255,255,255,.2)}
+button.plus{background:#16a34a}
+button.minus{background:#dc2626}
+input,select{font:inherit;padding:10px;border-radius:10px;border:0;margin-right:6px}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:center}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.chip{background:rgba(255,255,255,.2);border-radius:20px;padding:6px 12px}
+.chip b{cursor:pointer;margin-left:8px}
+#game{display:none}
+.stage{text-align:center}
+.cover{width:170px;height:170px;border-radius:16px;margin:10px auto;display:flex;align-items:center;justify-content:center;font-size:4rem;background:rgba(0,0,0,.3);background-size:cover}
+#answer{font-size:1.5rem;font-weight:700;min-height:2.2rem;margin:8px 0}
+#status{opacity:.8;min-height:1.4rem}
+.players{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.player{background:rgba(0,0,0,.28);border-radius:14px;padding:14px;text-align:center}
+.player .name{font-weight:700;font-size:1.1rem}
+.player .score{font-size:2.6rem;font-weight:800;margin:6px 0}
+.player .btns{display:flex;gap:8px;justify-content:center}
+.small{font-size:.85rem;opacity:.75;text-align:center}
+</style>
+</head>
+<body>
+<main>
+<h1>🎵 Blind Test</h1>
+
+<section id="setup" class="card">
+  <h2>Joueurs</h2>
+  <div class="row">
+    <input id="pname" placeholder="Nom du joueur" maxlength="20">
+    <button id="addP">Ajouter</button>
+  </div>
+  <div class="chips" id="chips"></div>
+  <h2>Musiques</h2>
+  <div class="row">
+    <select id="lvl">
+      <option value="easy">Facile (les plus connus, même des enfants)</option>
+      <option value="mid">Moyen (grands classiques)</option>
+      <option value="hard">Difficile (connus, mais moins évidents)</option>
+      <option value="all">Tous niveaux mélangés</option>
+    </select>
+    <select id="cat">
+      <option value="all">Tout mélangé</option>
+      <option value="us">Pop américaine</option>
+      <option value="fr">Pop / chanson française</option>
+      <option value="disney">🏰 Disney : devine le film</option>
+    </select>
+    <button class="big" id="start">Commencer</button>
+  </div>
+  <p class="small"><span id="count"></span> musiques disponibles. Internet est nécessaire (extraits de 30 s).</p>
+</section>
+
+<section id="game">
+  <div class="card stage">
+    <div id="status">Prêt !</div>
+    <div class="cover" id="cover">❓</div>
+    <div id="answer"></div>
+    <div class="row">
+      <button class="big" id="next">▶ Musique suivante</button>
+      <button class="alt" id="pp">⏯ Pause / Lecture</button>
+      <button class="alt" id="replay">↺ Rejouer</button>
+      <button id="reveal">👁 Voir la réponse</button>
+    </div>
+    <audio id="aud"></audio>
+    <p class="small">Raccourcis : Espace = pause · R = réponse · N = suivante</p>
+  </div>
+  <div class="card">
+    <div class="players" id="players"></div>
+  </div>
+  <div class="row">
+    <button class="alt" id="resetScores">Remettre les scores à 0</button>
+    <button class="alt" id="back">⚙ Modifier joueurs / style</button>
+  </div>
+</section>
+</main>
+
+<script>
+const HARD = {
+us: `Michael Jackson|Billie Jean
+Michael Jackson|Thriller
+Michael Jackson|Beat It
+Michael Jackson|Smooth Criminal
+Madonna|Like a Prayer
+Madonna|Vogue
+Madonna|La Isla Bonita
+Whitney Houston|I Wanna Dance with Somebody
+Whitney Houston|I Will Always Love You
+Prince|Kiss
+Cyndi Lauper|Girls Just Want to Have Fun
+Cyndi Lauper|Time After Time
+Britney Spears|...Baby One More Time
+Britney Spears|Toxic
+Britney Spears|Oops!... I Did It Again
+Christina Aguilera|Genie in a Bottle
+Backstreet Boys|I Want It That Way
+NSYNC|Bye Bye Bye
+Katy Perry|Roar
+Katy Perry|Firework
+Katy Perry|Dark Horse
+Lady Gaga|Poker Face
+Lady Gaga|Bad Romance
+Lady Gaga|Shallow
+Beyoncé|Single Ladies
+Beyoncé|Halo
+Beyoncé|Crazy in Love
+Rihanna|Umbrella
+Rihanna|We Found Love
+Rihanna|Diamonds
+Rihanna|Only Girl (In the World)
+Taylor Swift|Shake It Off
+Taylor Swift|Blank Space
+Taylor Swift|Love Story
+Taylor Swift|Anti-Hero
+Taylor Swift|Bad Blood
+Ariana Grande|7 rings
+Ariana Grande|thank u, next
+Ariana Grande|Side To Side
+Justin Bieber|Baby
+Justin Bieber|Sorry
+Justin Bieber|Love Yourself
+Justin Timberlake|Cry Me a River
+Justin Timberlake|Can't Stop the Feeling!
+Justin Timberlake|SexyBack
+Bruno Mars|Uptown Funk
+Bruno Mars|Just the Way You Are
+Bruno Mars|Locked Out of Heaven
+Bruno Mars|Grenade
+Bruno Mars|When I Was Your Man
+The Weeknd|Blinding Lights
+The Weeknd|Starboy
+The Weeknd|Can't Feel My Face
+The Weeknd|Save Your Tears
+Miley Cyrus|Flowers
+Miley Cyrus|Wrecking Ball
+Miley Cyrus|Party in the U.S.A.
+Selena Gomez|Lose You to Love Me
+Olivia Rodrigo|drivers license
+Olivia Rodrigo|good 4 u
+Billie Eilish|bad guy
+Billie Eilish|Ocean Eyes
+Doja Cat|Say So
+Doja Cat|Kiss Me More
+Lizzo|Good as Hell
+Lizzo|About Damn Time
+P!nk|So What
+P!nk|Just Give Me a Reason
+Kelly Clarkson|Since U Been Gone
+Kelly Clarkson|Stronger (What Doesn't Kill You)
+Black Eyed Peas|I Gotta Feeling
+Black Eyed Peas|Where Is the Love?
+Black Eyed Peas|Boom Boom Pow
+Maroon 5|Sugar
+Maroon 5|Moves Like Jagger
+Maroon 5|This Love
+OneRepublic|Counting Stars
+Imagine Dragons|Believer
+Imagine Dragons|Radioactive
+Imagine Dragons|Thunder
+Kesha|TiK ToK
+Pitbull|Give Me Everything
+Flo Rida|Low
+Usher|Yeah!
+Usher|OMG
+Alicia Keys|Fallin'
+Alicia Keys|Girl on Fire
+Mariah Carey|All I Want for Christmas Is You
+Mariah Carey|Hero
+Mariah Carey|We Belong Together
+Janet Jackson|Rhythm Nation
+Jennifer Lopez|Jenny from the Block
+Jennifer Lopez|On the Floor
+Nicki Minaj|Super Bass
+Eminem|Lose Yourself
+Eminem|Without Me
+Eminem|Stan
+Kanye West|Stronger
+Jay-Z|Empire State of Mind
+50 Cent|In da Club
+Lil Nas X|Old Town Road
+Post Malone|Circles
+Post Malone|Sunflower
+Post Malone|rockstar
+Charlie Puth|We Don't Talk Anymore
+Charlie Puth|Attention
+Jason Derulo|Whatcha Say
+Jason Derulo|Talk Dirty
+Meghan Trainor|All About That Bass
+Sabrina Carpenter|Espresso
+Sabrina Carpenter|Please Please Please
+Chappell Roan|Good Luck, Babe!
+Gwen Stefani|Hollaback Girl
+Destiny's Child|Survivor
+TLC|No Scrubs
+TLC|Waterfalls
+Journey|Don't Stop Believin'
+Cher|Believe
+Lana Del Rey|Summertime Sadness
+Lana Del Rey|Video Games
+Stevie Wonder|I Just Called to Say I Love You
+Lionel Richie|Hello
+Earth, Wind & Fire|September
+Donna Summer|Hot Stuff
+Gloria Gaynor|I Will Survive
+Pharrell Williams|Happy
+Fifth Harmony|Work from Home
+Camila Cabello|Havana`,
+fr: `Stromae|Alors on danse
+Stromae|Papaoutai
+Stromae|Formidable
+Stromae|Tous les mêmes
+Stromae|L'enfer
+Angèle|Balance ton quoi
+Angèle|Tout oublier
+Aya Nakamura|Djadja
+Aya Nakamura|Pookie
+Aya Nakamura|Copines
+Indila|Dernière danse
+Indila|S.O.S
+Louane|Jour 1
+Louane|Avenir
+Zaz|Je veux
+Zaz|On ira
+Christine and the Queens|Tilted
+Julien Doré|Coco Câline
+Julien Doré|Le Lac
+Vianney|Pas là
+Vianney|Je m'en vais
+Soprano|Mon précieux
+Soprano|Cosmo
+Maître Gims|Bella
+Maître Gims|Sapés comme jamais
+Maître Gims|Est-ce que tu m'aimes ?
+Dadju|Reine
+Slimane|Viens on s'aime
+Soolking|Dalida
+Black M|Sur ma route
+Black M|Je ne dirai jamais
+Kendji Girac|Color Gitano
+Kendji Girac|Andalouse
+M. Pokora|Juste un instant
+M. Pokora|Les planètes
+Amir|J'ai cherché
+Amir|On dirait
+Vitaa|Ça va ça vient
+Vitaa|XY
+Patrick Bruel|Casser la voix
+Patrick Bruel|Place des grands hommes
+Jean-Jacques Goldman|Là-bas
+Jean-Jacques Goldman|Je te donne
+Jean-Jacques Goldman|Il suffira d'un signe
+Céline Dion|Pour que tu m'aimes encore
+Céline Dion|S'il suffisait d'aimer
+Mylène Farmer|Désenchantée
+Mylène Farmer|Libertine
+Mylène Farmer|Sans contrefaçon
+Alizée|Moi... Lolita
+Alizée|J'en ai marre !
+Indochine|L'aventurier
+Indochine|J'ai demandé à la lune
+Daft Punk|One More Time
+Daft Punk|Around the World
+David Guetta|Titanium
+Édith Piaf|La vie en rose
+Édith Piaf|Non, je ne regrette rien
+Charles Aznavour|La Bohème
+Joe Dassin|Les Champs-Élysées
+Joe Dassin|L'été indien
+Claude François|Alexandrie Alexandra
+Claude François|Cette année-là
+Johnny Hallyday|Allumer le feu
+Johnny Hallyday|Que je t'aime
+Dalida|Gigi l'amoroso
+Dalida|Paroles, paroles
+Francis Cabrel|Je l'aime à mourir
+Renaud|Mistral gagnant
+Jacques Brel|Ne me quitte pas
+Serge Gainsbourg|Je t'aime... moi non plus
+Michel Polnareff|Goodbye Marylou
+Clara Luciani|La grenade
+Clara Luciani|Respire encore
+Eddy de Pretto|Kid
+Hoshi|Ta marinière
+Hoshi|Amour censure
+Tryo|L'hymne de nos campagnes
+Hélène Ségara|Il y a trop de gens qui t'aiment
+Florent Pagny|Savoir aimer
+Florent Pagny|Ma liberté de penser
+Garou|Sous le vent
+Zazie|Je suis un homme
+Pascal Obispo|Lucie
+Pascal Obispo|Fan
+Lorie|Près de moi
+Kids United|On écrit sur les murs
+Cœur de pirate|Comme des enfants`};
+
+const SONGS = [];
+for (const k in HARD) HARD[k].split('\n').forEach(l => { const [a, t] = l.split('|'); SONGS.push({a, t, k}); });
+SONGS.forEach(s => s.l = 'hard');
+const MID = {
+us: `Michael Jackson|Black or White
+Michael Jackson|Don't Stop 'Til You Get Enough
+Michael Jackson|Man in the Mirror
+Elvis Presley|Can't Help Falling in Love
+Elvis Presley|Jailhouse Rock
+Frank Sinatra|My Way
+Frank Sinatra|New York, New York
+Louis Armstrong|What a Wonderful World
+Ben E. King|Stand by Me
+Bill Withers|Ain't No Sunshine
+Marvin Gaye|Let's Get It On
+Ray Charles|Hit the Road Jack
+Aretha Franklin|Respect
+Tina Turner|The Best
+Tina Turner|What's Love Got to Do with It
+Bon Jovi|Livin' on a Prayer
+Guns N' Roses|Sweet Child o' Mine
+Survivor|Eye of the Tiger
+Toto|Africa
+Kenny Loggins|Footloose
+Kool & the Gang|Celebration
+Village People|Y.M.C.A.
+Chic|Le Freak
+Sister Sledge|We Are Family
+Ricky Martin|Livin' la Vida Loca
+Céline Dion|My Heart Will Go On
+Lady Gaga|Just Dance
+Katy Perry|California Gurls
+Taylor Swift|You Belong with Me
+Britney Spears|Womanizer
+Rihanna|Work
+Rihanna|Don't Stop the Music
+Bruno Mars|24K Magic
+Eminem|Love the Way You Lie
+Coolio|Gangsta's Paradise
+Will Smith|Men in Black
+Will Smith|Gettin' Jiggy wit It
+Vanilla Ice|Ice Ice Baby
+MC Hammer|U Can't Touch This
+Billy Joel|Uptown Girl
+Billy Joel|Piano Man
+Stevie Wonder|Superstition
+Lionel Richie|All Night Long
+Diana Ross|I'm Coming Out
+Donna Summer|I Feel Love
+Bobby McFerrin|Don't Worry, Be Happy
+Carly Rae Jepsen|Call Me Maybe
+Miley Cyrus|We Can't Stop
+Nelly|Hot in Herre
+OutKast|Hey Ya!
+Macklemore & Ryan Lewis|Can't Hold Us
+Macklemore & Ryan Lewis|Thrift Shop
+Walk the Moon|Shut Up and Dance
+The Jackson 5|I Want You Back
+The Jackson 5|ABC
+The Temptations|My Girl
+Otis Redding|(Sittin' On) The Dock of the Bay
+Etta James|At Last
+Nina Simone|Feeling Good
+Dean Martin|That's Amore
+Dolly Parton|9 to 5
+Johnny Cash|Ring of Fire
+Shania Twain|Man! I Feel Like a Woman!`,
+fr: `Joe Dassin|Et si tu n'existais pas
+Joe Dassin|Salut les amoureux
+Édith Piaf|Hymne à l'amour
+Édith Piaf|Milord
+Charles Aznavour|Hier encore
+Charles Aznavour|Emmenez-moi
+Dalida|Bambino
+Dalida|Il venait d'avoir 18 ans
+Claude François|Magnolias for Ever
+Claude François|Le téléphone pleure
+Claude François|Comme d'habitude
+Johnny Hallyday|L'envie
+Johnny Hallyday|Marie
+Michel Sardou|Les lacs du Connemara
+Michel Sardou|La maladie d'amour
+Jean-Jacques Goldman|Quand la musique est bonne
+Jean-Jacques Goldman|Au bout de mes rêves
+Jean-Jacques Goldman|Envole-moi
+Francis Cabrel|Petite Marie
+Renaud|Laisse béton
+Jacques Dutronc|Il est cinq heures, Paris s'éveille
+Serge Gainsbourg|La Javanaise
+France Gall|Ella, elle l'a
+France Gall|Résiste
+France Gall|Poupée de cire, poupée de son
+Les Rita Mitsouko|Marcia Baïla
+Téléphone|Un autre monde
+Noir Désir|Le vent nous portera
+Gérald De Palmas|Sur la route
+Calogero|En apesanteur
+Calogero|Face à la mer
+Magic System|Premier Gaou
+Magic System|Magic in the Air
+Shy'm|Et alors !
+Bénabar|Le dîner
+Alain Souchon|Foule sentimentale
+Alain Souchon|Allô maman bobo
+Laurent Voulzy|Belle-Île-en-Mer
+Gilbert Bécaud|Nathalie
+Yves Montand|Les feuilles mortes
+Henri Salvador|Jardin d'hiver
+Vanessa Paradis|Joe le taxi
+Patrick Hernandez|Born to Be Alive
+Sheila|L'école est finie
+Sylvie Vartan|La plus belle pour aller danser
+Début de Soirée|Nuit de folie
+Images|Les démons de minuit
+Gold|Plus près des étoiles
+Étienne Daho|Week-end à Rome
+Elsa|T'en va pas
+Lio|Banana Split
+Plastic Bertrand|Ça plane pour moi
+Carlos|Big Bisou
+Annie Cordy|Cho ka ka ô
+Dave|Du côté de chez Swann
+Jain|Makeba
+Kungs|This Girl
+Diam's|La boulette
+Christophe Maé|On s'attache
+Christophe Maé|Il est où le bonheur
+Mickey 3D|Respire
+Yannick Noah|Saga Africa
+Bob Sinclar|Love Generation
+Julien Clerc|Mélissa
+Mike Brant|Laisse-moi t'aimer
+Hervé Vilard|Capri c'est fini
+Marc Lavoine|Elle a les yeux revolver
+Christophe|Aline`};
+for (const k in MID) MID[k].split('\n').forEach(x => { const [a, t] = x.split('|'); SONGS.push({a, t, k, l: 'mid'}); });
+const EASY = {
+us: `Idina Menzel|Let It Go
+Kristen Bell|Do You Want to Build a Snowman?
+Peabo Bryson|A Whole New World
+Carolina Gaitán|We Don't Talk About Bruno
+Auli'i Cravalho|How Far I'll Go
+Miley Cyrus|The Best of Both Worlds
+Cynthia Erivo|Defying Gravity
+Brenda Lee|Rockin' Around the Christmas Tree
+Bobby Helms|Jingle Bell Rock
+Bing Crosby|White Christmas
+Andy Williams|It's the Most Wonderful Time of the Year
+Neil Diamond|Sweet Caroline
+John Denver|Take Me Home, Country Roads
+Ray Parker Jr.|Ghostbusters
+LMFAO|Party Rock Anthem
+The Chainsmokers|Closer
+Jason Mraz|I'm Yours
+Train|Hey, Soul Sister
+Plain White T's|Hey There Delilah
+Katy Perry|Teenage Dream
+Katy Perry|I Kissed a Girl
+fun.|We Are Young
+Owl City|Fireflies
+Taylor Swift|Cruel Summer
+Taylor Swift|Karma
+Olivia Rodrigo|vampire
+Billie Eilish|What Was I Made For?
+Billie Eilish|BIRDS OF A FEATHER
+Lady Gaga|Die with a Smile
+ROSÉ|APT.
+Kendrick Lamar|Not Like Us
+SZA|Kill Bill
+Benson Boone|Beautiful Things
+Lil Nas X|MONTERO (Call Me By Your Name)
+Ariana Grande|Break Free
+Justin Bieber|Peaches`,
+fr: `Anaïs Delva|Libérée, délivrée
+Tino Rossi|Petit Papa Noël
+Khaled|Aïcha
+Amel Bent|Ma philosophie
+Zebda|Tomber la chemise
+Kamini|Marly-Gomont
+Helmut Fritz|Ça m'énerve
+Gilbert Montagné|On va s'aimer
+Daniel Balavoine|SOS d'un terrien en détresse
+Daniel Balavoine|L'Aziza
+Corneille|Parce qu'on vient de loin
+Charles Trenet|La mer
+Michel Fugain|Une belle histoire
+Michel Delpech|Pour un flirt
+Les Forbans|Chante
+Pierre Perret|Lily
+Les Innocents|Un homme extraordinaire
+Axel Bauer|Cargo
+Angèle|Bruxelles je t'aime
+Aya Nakamura|Jolie nana
+Stromae|Santé
+Stromae|Ave Cesaria
+Dadju|Jaloux
+Louane|Maman
+Orelsan|La pluie
+Maître Gims|Belle
+Indila|Tourner dans le vide
+Yseult|Corps`};
+for (const k in EASY) EASY[k].split('\n').forEach(x => { const [a, t] = x.split('|'); SONGS.push({a, t, k, l: 'easy'}); });
+const MORE = {
+us: `Smash Mouth|All Star
+Hanson|MMMBop
+Baha Men|Who Let the Dogs Out?
+Aaron Carter|I Want Candy
+Vanessa Carlton|A Thousand Miles
+Soulja Boy|Crank That (Soulja Boy)
+Jonas Brothers|Sucker
+Demi Lovato|Sorry Not Sorry
+Katy Perry|Hot N Cold
+Lady Gaga|Paparazzi
+Pink|Raise Your Glass
+Black Eyed Peas|Pump It
+Whitney Houston|How Will I Know
+Dean Martin|Let It Snow! Let It Snow! Let It Snow!
+José Feliciano|Feliz Navidad
+Frank Sinatra|Jingle Bells
+Burl Ives|A Holly Jolly Christmas`,
+fr: `Patrick Sébastien|Les Sardines
+Jenifer|Au soleil
+Kids United|Un monde meilleur
+Larusso|Tu m'oublieras
+Nolwenn Leroy|Tri Martolod`};
+for (const k in MORE) MORE[k].split('\n').forEach(x => { const [a, t] = x.split('|'); SONGS.push({a, t, k, l: 'easy'}); });
+const DEMOTE = `Karma;BIRDS OF A FEATHER;Beautiful Things;Kill Bill;Die with a Smile;APT.;Defying Gravity;We Are Young;Fireflies;Closer;Hey, Soul Sister;Hey There Delilah;I'm Yours;Take Me Home, Country Roads;Ghostbusters;It's the Most Wonderful Time of the Year;Jingle Bell Rock;MONTERO (Call Me By Your Name);Break Free;Peaches;vampire;Not Like Us;I Kissed a Girl;Parce qu'on vient de loin;La mer;Une belle histoire;Pour un flirt;Chante;Lily;Un homme extraordinaire;Cargo;SOS d'un terrien en détresse;L'Aziza;On va s'aimer;Ça m'énerve;Tomber la chemise;Corps;La pluie;Belle;Tourner dans le vide;Jaloux;Maman;Ave Cesaria`.split(';');
+SONGS.forEach(s => { if (s.l === 'easy' && DEMOTE.includes(s.t)) s.l = 'mid'; });
+
+const DISNEY = `Libérée, délivrée|La Reine des neiges|reine des neiges
+Veux-tu bâtir un bonhomme de neige ?|La Reine des neiges|reine des neiges
+Dans un autre monde|La Reine des neiges 2|reine des neiges 2
+Ce rêve bleu|Aladdin|aladdin
+Un ami comme moi|Aladdin|aladdin
+Prince Ali|Aladdin|aladdin
+L'histoire de la vie|Le Roi Lion|roi lion
+Hakuna Matata|Le Roi Lion|roi lion
+Je voudrais déjà être roi|Le Roi Lion|roi lion
+L'amour brille sous les étoiles|Le Roi Lion|roi lion
+La Belle et la Bête|La Belle et la Bête|belle et la bete
+Fais comme chez toi|La Belle et la Bête|belle et la bete
+Sous l'océan|La Petite Sirène|petite sirene
+Partir là-bas|La Petite Sirène|petite sirene
+Embrasse-la|La Petite Sirène|petite sirene
+Il en faut peu pour être heureux|Le Livre de la jungle|livre de la jungle
+Être un homme comme toi|Le Livre de la jungle|livre de la jungle
+Les Couleurs du vent|Pocahontas|pocahontas
+Reflet|Mulan|mulan
+Comment faire de vous un homme|Mulan|mulan
+Je vole|Hercule|hercule
+De zéro en héros|Hercule|hercule
+Toujours dans mon cœur|Tarzan|tarzan
+Fils de l'homme|Tarzan|tarzan
+Bibidi Bobidi Bou|Cendrillon|cendrillon
+Un rêve est un souhait que fait ton cœur|Cendrillon|cendrillon
+Sifflez en travaillant|Blanche-Neige et les Sept Nains|blanche neige
+Heigh-Ho|Blanche-Neige et les Sept Nains|blanche neige
+Un jour mon prince viendra|Blanche-Neige et les Sept Nains|blanche neige
+Quand on prie la bonne étoile|Pinocchio|pinocchio
+Supercalifragilisticexpialidocious|Mary Poppins|mary poppins
+Avec un morceau de sucre|Mary Poppins|mary poppins
+Tout le monde veut devenir un cat|Les Aristochats|aristochats
+Vous savez voler|Peter Pan|peter pan
+Rêve un peu|La Belle au bois dormant|bois dormant
+Je suis ton ami|Toy Story|toy story
+Ne m'oublie pas|Coco|coco
+Un peu fou|Coco|coco
+Le bleu lumière|Vaiana|vaiana
+De rien|Vaiana|vaiana
+On ne parle pas de Bruno|Encanto|encanto
+Sous pression|Encanto|encanto
+Je vois la lumière|Raiponce|raiponce
+Là-haut|Le Bossu de Notre-Dame|bossu de notre dame
+Presque arrivé|La Princesse et la Grenouille|princesse et la grenouille
+Life Is a Highway|Cars|cars
+Bébé mine|Dumbo|dumbo
+Essaie tout|Zootopie|zootopie
+Tous ensemble|High School Musical|high school musical`;
+DISNEY.split('\n').forEach(x => { const [t, m, q] = x.split('|'); SONGS.push({a: 'Disney', t, m, q, k: 'disney', l: 'disney'}); });
+function disneyPick(res, song, norm) {
+  const z = x => norm(x || '').replace(/[^a-z0-9]/g, '');
+  const key = z(song.q);
+  const bad = /karaoke|tribute|cover|lullaby|instrumental|score|originally|piano|made famous/i;
+  const c = res.filter(r => r.previewUrl && z(r.collectionName).includes(key) && /disney|pixar|bande originale|soundtrack|cast|film/i.test((r.collectionName || '') + ' ' + (r.artistName || '')) && !bad.test((r.trackName || '') + ' ' + (r.collectionName || '') + ' ' + (r.artistName || '')));
+  return c.find(r => z(r.trackName).includes(z(song.t))) || c[0] || null;
+}
+
+const $ = id => document.getElementById(id);
+let players = [], queue = [], current = null, token = 0;
+try { players = JSON.parse(localStorage.getItem('bt_players') || '[]'); } catch (e) {}
+const save = () => { try { localStorage.setItem('bt_players', JSON.stringify(players)); } catch (e) {} };
+const pool = () => { const c = $('cat').value, l = $('lvl').value; if (c === 'disney') return SONGS.filter(s => s.k === 'disney'); return SONGS.filter(s => s.k !== 'disney' && (c === 'all' || s.k === c) && (l === 'all' || s.l === l)); };
+const upd = () => { $('lvl').style.display = $('cat').value === 'disney' ? 'none' : ''; $('count').textContent = pool().length; };
+$('cat').onchange = $('lvl').onchange = upd; upd();
+
+function renderChips() {
+  $('chips').innerHTML = '';
+  players.forEach((p, i) => {
+    const c = document.createElement('span'); c.className = 'chip'; c.textContent = p.name;
+    const x = document.createElement('b'); x.textContent = '✕';
+    x.onclick = () => { players.splice(i, 1); save(); renderChips(); };
+    c.appendChild(x); $('chips').appendChild(c);
+  });
+}
+function renderPlayers() {
+  $('players').innerHTML = '';
+  players.forEach(p => {
+    const d = document.createElement('div'); d.className = 'player';
+    d.innerHTML = '<div class="name"></div><div class="score"></div><div class="btns"><button class="plus">+1</button><button class="minus">−1</button></div>';
+    d.querySelector('.name').textContent = p.name;
+    d.querySelector('.score').textContent = p.score;
+    d.querySelector('.plus').onclick = () => { p.score++; save(); renderPlayers(); };
+    d.querySelector('.minus').onclick = () => { p.score--; save(); renderPlayers(); };
+    $('players').appendChild(d);
+  });
+}
+function addPlayer() {
+  const n = $('pname').value.trim();
+  if (!n) return;
+  players.push({name: n, score: 0}); $('pname').value = ''; save(); renderChips(); $('pname').focus();
+}
+$('addP').onclick = addPlayer;
+$('pname').onkeydown = e => { if (e.key === 'Enter') addPlayer(); };
+
+function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function buildQueue() { queue = shuffle(pool()); }
+
+$('start').onclick = () => {
+  if (!players.length) { alert('Ajoute au moins un joueur !'); return; }
+  buildQueue(); $('setup').style.display = 'none'; $('game').style.display = 'block'; renderPlayers(); nextSong();
+};
+$('back').onclick = () => { $('aud').pause(); $('game').style.display = 'none'; $('setup').style.display = 'block'; renderChips(); };
+$('resetScores').onclick = () => { if (confirm('Remettre tous les scores à 0 ?')) { players.forEach(p => p.score = 0); save(); renderPlayers(); } };
+
+function lookup(song) {
+  return new Promise(resolve => {
+    const cb = 'cb' + Date.now() + Math.floor(Math.random() * 1e6);
+    const s = document.createElement('script');
+    const done = r => { delete window[cb]; s.remove(); clearTimeout(tm); resolve(r); };
+    const tm = setTimeout(() => done(null), 8000);
+    window[cb] = data => {
+      const norm = x => x.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const first = norm(song.a).split(/[ ,&]/)[0];
+      const hit = song.m ? disneyPick(data.results || [], song, norm) : (data.results || []).find(r => r.previewUrl && norm(r.artistName).includes(first));
+      done(hit || null);
+    };
+    s.onerror = () => done(null);
+    s.src = 'https://itunes.apple.com/search?media=music&entity=song&limit=25&country=FR&callback=' + cb + '&term=' + encodeURIComponent(song.m ? song.t + ' ' + song.m : song.a + ' ' + song.t);
+    document.head.appendChild(s);
+  });
+}
+
+async function nextSong() {
+  const my = ++token;
+  $('aud').pause();
+  $('answer').textContent = ''; $('cover').style.backgroundImage = ''; $('cover').textContent = '❓';
+  for (let tries = 0; tries < 6; tries++) {
+    if (!queue.length) buildQueue();
+    const song = queue.pop();
+    $('status').textContent = 'Chargement de la musique…';
+    const hit = await lookup(song);
+    if (my !== token) return;
+    if (hit) {
+      current = {song, hit};
+      $('aud').src = hit.previewUrl;
+      try { await $('aud').play(); $('status').textContent = '🎧 Écoute bien… (extrait de 30 s)'; }
+      catch (e) { $('status').textContent = 'Clique sur « Pause / Lecture » pour lancer.'; }
+      return;
+    }
+  }
+  $('status').textContent = 'Impossible de charger une musique : vérifie ta connexion internet.';
+}
+
+function reveal() {
+  if (!current) return;
+  $('answer').textContent = current.song.m ? '🎬 ' + current.song.m + ' (' + current.hit.trackName.replace(/\s*[(\[].*$/, '') + ')' : current.song.a + ' — ' + current.song.t;
+  const art = (current.hit.artworkUrl100 || '').replace('100x100', '300x300');
+  if (art) { $('cover').style.backgroundImage = 'url(' + art + ')'; $('cover').textContent = ''; }
+}
+const toggle = () => { const a = $('aud'); a.paused ? a.play() : a.pause(); };
+$('next').onclick = nextSong;
+$('reveal').onclick = reveal;
+$('pp').onclick = toggle;
+$('replay').onclick = () => { $('aud').currentTime = 0; $('aud').play(); };
+document.addEventListener('keydown', e => {
+  if ($('game').style.display !== 'block' || e.target.tagName === 'INPUT') return;
+  if (e.code === 'Space') { e.preventDefault(); toggle(); }
+  else if (e.key === 'r' || e.key === 'R') reveal();
+  else if (e.key === 'n' || e.key === 'N') nextSong();
+});
+renderChips();
+</script>
+</body>
+</html>
